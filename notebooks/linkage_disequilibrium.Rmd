@@ -1,0 +1,203 @@
+---
+title: "linkage_disequilibrium"
+author: "Matthew Bracher-Smith"
+date: "25/01/2024"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(ggcorrplot)
+set.seed(123)
+```
+
+
+# Simulating unassociated SNPs
+
+- We covered additive risk variants under a liability-threshold model
+- We also added multiplicative interactions between two loci
+- But in fact we can have any relationships between two SNPs (theoretically)
+
+Start by setting up functions for unassociated SNPs as before:
+
+```{r}
+n <- 10000 # observations
+p <- 100 # SNPs
+```
+
+
+Then generate unassociated genotypes
+
+```{r}
+add_noise <- function(n=1000, p=100, maf_range = c(0.05, 0.5)) {
+  maf <- runif(p, maf_range[1], maf_range[2])
+  genotypes <- sapply(maf, function(freq) rbinom(n, 2, freq))
+  return(genotypes)
+}
+```
+
+And run a quick check that everything's okay:
+
+```{r}
+g <- add_noise(n, p)
+g[1:10,1:10]
+```
+
+# Simulating simple LD
+We'll measure this here using pearsons correlation (though there are other prominent metrics like D`) making SNPs in varying LD is actually really easy:
+
+- If we duplicated a SNP, then correlation (LD) would be perfect
+- To decrease this correlation, we randomly shuffle a proportion of the rows in one of the SNPs
+- The greater proportion of rows that we shuffle, the more decorrelated they are
+- Shuffling all would be linkage equilibrium and the SNPs would not be correlated anymore
+- Randomly shuffling (rather than flipping them from e.g. 2 to 1 or 0) means we maintain MAF and HWE too
+
+For a given SNP, we can make a couple of functions to derive simple LD, LD blocks and more.
+
+## Replacing causal SNPs with SNPs in LD
+
+This function returns a SNP in LD with the SNP we pass in
+
+```{r}
+add_simple_ld <- function(causal_snp, r2) {
+  indices_to_shuffle <- sample(1:length(causal_snp), 
+                               size = (1 - r2) * length(causal_snp), 
+                               replace = FALSE)
+  ld_snp <- causal_snp
+  
+  if(length(indices_to_shuffle) > 1){
+    shuffledpeople <- sample(causal_snp[indices_to_shuffle])
+    ld_snp[indices_to_shuffle] <- shuffledpeople
+  }
+
+  
+  return(ld_snp)
+}
+```
+
+Here, this function takes genotypes, a proportion of indices to sample and r2 values and replaces all the SNPs at those indices with the associated r2 values
+
+```{r}
+replace_with_ld <- function(g, m, ld_range = c(0.1, 0.9)) {
+  # g is our genotypes
+  # m is the proportion of causal SNPs we want to keep
+  # ld_range is the min/max values for a uniform distribution for us to sample from for 
+  #          the LD for the new SNPs we will create
+  #          Note we replace the causal SNPs with the LD ones (rather than adding them in)
+  #          This has the added benefit of stopping dimension size from blowing-up
+  snp_indices_to_replace <- sample(1:dim(g)[2], as.integer((1-m)*dim(g)[2]), replace=FALSE)
+  ld_for_replacements <- runif(length(snp_indices_to_replace), ld_range[1], ld_range[2])
+  
+  for(i in 1:length(snp_indices_to_replace)) {
+    j <- snp_indices_to_replace[i]
+    g[,j] <- add_simple_ld(g[,j], ld_for_replacements[i])
+  }
+  
+  return(g)
+}
+```
+
+## Running a quick check
+
+- We create new genotypes h where there's only 10% of the causal SNPs tagged
+- Here they're all noise, so nothing's really causal though
+
+```{r}
+h <- replace_with_ld(g, m = 0.1)
+
+# derive a genotypic score (PRS) for each
+# here this is just the unweighted sum of the alleles
+# there are no risk alleles here as they're all unassociated, but it allows us
+# to reduce the dimensions to compare two datasets easily
+plot(colSums(g), colSums(h))
+
+# but individual genotypes should be less correlated (90% of the time)
+cor(g[,1], h[,1])
+cor(g[,2], h[,2])
+cor(g[,3], h[,3])
+cor(g[,4], h[,4])
+cor(g[,5], h[,5])
+```
+
+# Simulating more complex LD blocks
+
+Again, suprisingly simple to do:
+
+- Note: [read about them](https://www.nature.com/articles/nrg1123) and checkout [haploview](https://www.broadinstitute.org/haploview/haploview) if you don't know what LD blocks are
+- To make a block, we just replace the causal SNP with several SNPs in varying LD
+- Simplest way to do this is to draw from the uniform distribution for r2
+- The more complex is to use something like a half-normal distibution that decreases as you move away from the causal SNP
+- You'd think that it makes sense to slowly decrease LD as you move physically away from the causal SNP
+- In practice, this isn't really the case, and drawing from a uniform distribution does just fine
+
+```{r}
+add_simple_ld_block <- function(snp, block_size=10) {
+  ld_values <- runif(block_size, 0.1, 0.9)
+  ld_block <- matrix(0, nrow = length(snp), ncol = block_size)
+  
+  for(i in 1:block_size) {
+    ld_block[,i] <- add_simple_ld(snp, ld_values[i])
+  }
+  
+  return(ld_block)
+}
+```
+
+We can test replacing a single causal SNP with a whole block of SNPs in LD and plot the correlation:
+
+```{r}
+ld_block <- add_simple_ld_block(g[,1])
+ggcorrplot(cor(ld_block), type="lower", colors = c("red", "white", "blue"))
+```
+
+## Success!
+
+We can then iterate through the causal SNPs in and replace each with a block. However, it's going to up the dimensions substantially, so we'll do two things:
+
+- Re-simulate a smaller dataset with just 10 SNPs
+- Randomly draw the block size from a distribution so we have different block sizes
+
+```{r}
+g <- add_noise(p=10, 1000) # create initial dataset of 10 SNPs
+block_sizes <- sample(3:10, 10, replace=TRUE) # sample 10 blocks, each of which is 3-10 SNPs
+
+for(i in 1:ncol(g)) {
+  block <- add_simple_ld_block(g[,i], block_size = block_sizes[i])
+
+  if(i == 1){
+    ld_blocks <- block
+  } else {
+    ld_blocks <- cbind(ld_blocks, block)
+  }
+}
+
+ggcorrplot(cor(ld_blocks), type="lower", colors = c("red", "white", "blue"))
+```
+
+We can now see some of the classic LD block structure from real populations! It's worth noting a few points here though:
+
+- The situation where you have two variants that are in high LD, but only one of them is in high LD with a third variant, or where a variant is in higher LD with a variant further away than the variant right next to it is very common.
+- Actual block structure varies by population (e.g. Europeans tend to have a clearer block structure because of population bottlenecks/inbreeding etc.)
+
+# Simulating even more realistic LD blocks
+
+What if we want to get even closer to realistic LD?
+
+## Background
+
+- So far we've been simulating LD with the causal SNP, but it's too complicated to try to manually set the pairwise LD to be the same as a real dataset using the method we've implemented
+- This would require us iteratively shuffle predictors and keep rechecking pairwise correlations between all the SNPs in a block (and would ignore the fact that blocks aren't that clean - there can be LD with SNPs further away too!)
+- More complicated pure-simulation methods approach the problem by taking a population and a given evolutionary model and following them forwards or backwards in time
+- For example, they may start with a population with very little LD (most variants are independent) and force it through population bottlenecks to create LD blocks
+- Alternatively, they may start with very strong LD blocks (most variants dependent) and making the population undergo mating/recombination to break up the LD blocks till LD structure reaches the desired level
+- These methods are typically more complicated to implement than what we've done here - they may represent both chromosomes to allow for crossing-over during meiosis, for example
+- A classic example is [GenomeSIMLA](https://link.springer.com/chapter/10.1007/978-3-540-78757-0_3), but there are [a huge number of options these day](https://onlinelibrary.wiley.com/doi/full/10.1002/gepi.21876)
+- Realistically though, these methods can all be computationally intensive, and aren't used that often
+- Usually, when we're not too bothered about closely mimicking a real population, it's easier to simulate yourself, as we do here, so you can precisely control the aspects you want that may not be available in a given package
+- When we want more realistic LD structure, it's far easier (and probably more realistic) to just take it from real data
+
+## Working with 1000 genomes (1kg) data
+We do this by sampling from real data (1kg), so LD structures are realistic and then we just need to create a phenotype
+
