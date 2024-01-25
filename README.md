@@ -48,7 +48,7 @@ As this is a work in progress, contributions, suggestions, and feedback are high
 
 ## License
 
-This project is open-sourced under the MIT License. See the LICENSE file for more details.
+This project is open-sourced under the GPL-3.0 license. See the LICENSE file for more details.
 
 ---
 
