@@ -3,6 +3,11 @@ title: "Simulating Linkage Disequilibrium"
 author: "Matthew Bracher-Smith"
 format: html
 editor: source
+execute:
+  freeze: auto
+project:
+  type: website
+  output-dir: docs
 ---
 
 ```{r}
