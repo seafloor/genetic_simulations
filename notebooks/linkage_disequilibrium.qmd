@@ -1,10 +1,10 @@
 ---
 title: "Simulating Linkage Disequilibrium"
 author: "Matthew Bracher-Smith"
-format: html
+format: ipynb
 editor: source
 execute:
-  enabled: true
+  freeze: auto
 ---
 
 ```{r}
