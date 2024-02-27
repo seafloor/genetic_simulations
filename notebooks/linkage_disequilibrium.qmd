@@ -323,7 +323,7 @@ ggcorrplot(cor(setNames(df[, 1:200], c()),
            colors = c("red", "white", "blue"))
 ```
 
-As we can see, there aare definitely blocks, but the correlation structure is significantly more complicated! 
+As we can see, there aare definitely blocks, but the correlation structure is significantly more complicated!
 
 ### Simulations on 1kg data
 
@@ -389,7 +389,7 @@ mod_lasso <- glmnet(X_train, y_train,
                     lambda = grid_params)
 ```
 
-We can see the plot below which shows us the coefficients for the different L1 norms, and that some of the coefficients do indeed drop to zero, so we can fit a nice sparse model to the data. 
+We can see the plot below which shows us the coefficients for the different L1 norms, and that some of the coefficients do indeed drop to zero, so we can fit a nice sparse model to the data.
 
 ```{r}
 #| label: fig-lasso-coefs
@@ -454,10 +454,7 @@ pROC::roc(y_test, test_lasso)
 Despite not finding the causal SNPs, we've done quite well in terms of predictions. Again, not a suprising result. There's strong LD structure, so we can predict well from variants in LD with the causal SNPs. This seems okay on the surface, but as the LD between the causal SNP and the SNP in our model vary across global populations, we would likely see a substantial drop in predictive performance in a different population. This is a fundamental problem with genetic prediction models.
 
 ## Summary
-We've covered a lot of ground here, but the main points are:
- - We can simulate very simple LD  and even block structures a few lines of code
- - We can use real data and simulate phenotypes from it 
- - We can then fit ML models to this data, but
- - LD presents a significant issue for identifying the causal variant in a dataset
- 
+
+We've covered a lot of ground here, but the main points are: - We can simulate very simple LD and even block structures a few lines of code - We can use real data and simulate phenotypes from it - We can then fit ML models to this data, but - LD presents a significant issue for identifying the causal variant in a dataset
+
 There are a few logical follow-on questions. First is whether different ML models can perform better in such a scenario. Second is, given PRS often out-perform ML methods on complex trait prediction, is this largely due to how they handle LD?
