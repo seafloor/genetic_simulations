@@ -4,7 +4,7 @@ author: "Matthew Bracher-Smith"
 format: ipynb
 editor: source
 execute:
-  freeze: auto
+  enabled: true
 ---
 
 ```{r}
@@ -20,6 +20,7 @@ library(glmnet)
 library(ggcorrplot)
 library(glmnet)
 library(pROC)
+library(here)
 set.seed(123)
 ```
 
@@ -248,19 +249,24 @@ We can extract specific regions from 1kg remotely using a system call to bcftool
 #| label: download-1kg
 # assuming you're working in the genetic_simulations directory
 # please username/directory structure and change slashes in paths if working in Windows
-setwd("/Users/seafloor/genetic_simulations")
-dir.create("data")
+
+dir.create(here::here("data"))
 
 # set path for your bcftools binary
-Sys.setenv(PATH = paste(Sys.getenv("PATH"), "/Users/seafloor/Applications", sep = ":"))
+Sys.setenv(PATH = paste(Sys.getenv("PATH"), here::here("../Applications/"), sep = ":"))
 
-system('bcftools view "https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/release/20181203_biallelic_SNV/ALL.chr19.shapeit2_integrated_v1a.GRCh38.20181129.phased.vcf.gz" --regions "chr19:44400000-46500000" --min-af 0.05 --output-type v --output data/apoe_region_1kg_grch38.vcf')
+system(paste('bcftools view "https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/release/20181203_biallelic_SNV/ALL.chr19.shapeit2_integrated_v1a.GRCh38.20181129.phased.vcf.gz" --regions "chr19:44400000-46500000" --min-af 0.05 --output-type v --output',
+             here::here("data", "apoe_region_1kg_grch38.vcf")))
+
+unlink(here::here("data", "notebooks",
+                  "ALL.chr19.shapeit2_integrated_v1a.GRCh38.20181129.phased.vcf.gz.tbi"))
+
 ```
 
 ```{r}
 #| label: read-1kg
 # read our new vcf file, which is variants * individuals
-vcf <- read_tsv("data/apoe_region_1kg_grch38.vcf", comment = "##") %>%
+vcf <- read_tsv(here::here("data", "apoe_region_1kg_grch38.vcf"), comment = "##") %>%
   mutate(ID = str_c(`#CHROM`, "_", POS, "_", REF, "_", ALT)) %>%
   select(-`#CHROM`, -POS, -REF, -ALT, -QUAL, -FILTER, -INFO, -FORMAT)
 
@@ -391,6 +397,7 @@ We can see the plot below which shows us the coefficients for the different L1 n
 ```{r}
 #| label: fig-lasso-coefs
 #| fig-cap: "Coefficients for different L1 norms"
+#| warning: false
 plot(mod_lasso)
 ```
 
@@ -445,7 +452,7 @@ Finally we can check our AUC quickly to see how well we've done in terms of pred
 #| label: auc-check
 #| warning: false
 
-pROC::roc(y_test, test_lasso)
+pROC::roc(y_test, as.vector(test_lasso))
 ```
 
 Despite not finding the causal SNPs, we've done quite well in terms of predictions. Again, not a suprising result. There's strong LD structure, so we can predict well from variants in LD with the causal SNPs. This seems okay on the surface, but as the LD between the causal SNP and the SNP in our model vary across global populations, we would likely see a substantial drop in predictive performance in a different population. This is a fundamental problem with genetic prediction models.
