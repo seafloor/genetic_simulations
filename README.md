@@ -40,6 +40,18 @@ The tutorials are structured as R Markdown files. To view or run the tutorials, 
 
 ---
 
+## Requirements
+
+R:
+
+- tidyverse
+
+Other:
+
+- [bcftools](https://www.htslib.org/download/) (Only needed for sampling from 1000 genomes remotely)
+
+---
+
 ## Contributing
 
 As this is a work in progress, contributions, suggestions, and feedback are highly appreciated. If you have ideas for additional topics or improvements, please feel free to submit an issue or pull request.
