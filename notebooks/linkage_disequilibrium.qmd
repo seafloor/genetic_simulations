@@ -5,6 +5,8 @@ format: ipynb
 editor: source
 execute:
   enabled: true
+toc: true
+keep-ipynb: true
 ---
 
 ```{r}
@@ -258,7 +260,7 @@ Sys.setenv(PATH = paste(Sys.getenv("PATH"), here::here("../Applications/"), sep 
 system(paste('bcftools view "https://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/release/20181203_biallelic_SNV/ALL.chr19.shapeit2_integrated_v1a.GRCh38.20181129.phased.vcf.gz" --regions "chr19:44400000-46500000" --min-af 0.05 --output-type v --output',
              here::here("data", "apoe_region_1kg_grch38.vcf")))
 
-unlink(here::here("data", "notebooks",
+unlink(here::here("notebooks",
                   "ALL.chr19.shapeit2_integrated_v1a.GRCh38.20181129.phased.vcf.gz.tbi"))
 
 ```
@@ -459,6 +461,11 @@ Despite not finding the causal SNPs, we've done quite well in terms of predictio
 
 ## Summary
 
-We've covered a lot of ground here, but the main points are: - We can simulate very simple LD and even block structures a few lines of code - We can use real data and simulate phenotypes from it - We can then fit ML models to this data, but - LD presents a significant issue for identifying the causal variant in a dataset
+We've covered a lot of ground here, but the main points are:
+
+  - We can simulate very simple LD and even block structures a few lines of code
+  - We can use real data and simulate phenotypes from it
+  - We can then fit ML models to this data, but
+  - LD presents a significant issue for identifying the causal variant in a dataset
 
 There are a few logical follow-on questions. First is whether different ML models can perform better in such a scenario. Second is, given PRS often out-perform ML methods on complex trait prediction, is this largely due to how they handle LD?
